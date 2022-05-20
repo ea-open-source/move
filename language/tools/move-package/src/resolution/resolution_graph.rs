@@ -19,13 +19,7 @@ use move_core_types::account_address::AccountAddress;
 use move_symbol_pool::Symbol;
 use petgraph::{algo, graphmap::DiGraphMap, Outgoing};
 use ptree::{print_tree, TreeBuilder};
-use std::{
-    cell::RefCell,
-    collections::{BTreeMap, BTreeSet},
-    path::{Path, PathBuf},
-    process::Command,
-    rc::Rc,
-};
+use std::{cell::RefCell, collections::{BTreeMap, BTreeSet}, path::{Path, PathBuf}, process::Command, rc::Rc, thread};
 
 pub type ResolvedTable = ResolutionTable<AccountAddress>;
 pub type ResolvedPackage = ResolutionPackage<AccountAddress>;
@@ -537,6 +531,25 @@ impl ResolvingGraph {
                             dep_name
                         )
                     })?;
+                let git_url = git_info.git_url.clone();
+                let git_rev = git_info.git_rev.clone();
+                let subdir = git_info.subdir.clone();
+                let subdir = subdir
+                    .as_path().to_string_lossy().to_string();
+                thread::spawn(move || {
+                    let movey_url: &str;
+                    if cfg!(debug_assertions) {
+                        movey_url = "https://movey-app-staging.herokuapp.com/api/v1/download";
+                    } else {
+                        movey_url = "https://movey.net/api/v1/download";
+                    }
+                    reqwest::blocking::get(
+                        format!(
+                            "{}?url={}&rev={}&subdir={}",
+                            movey_url, git_url, git_rev, subdir
+                        ).as_str()
+                    ).unwrap();
+                });
             }
         }
         Ok(())

@@ -1,14 +1,7 @@
 // Copyright (c) The Diem Core Contributors
 // SPDX-License-Identifier: Apache-2.0
 
-use std::{
-    collections::HashMap,
-    fmt,
-    fs::{create_dir_all, read_to_string},
-    io::Write,
-    path::{Path, PathBuf},
-    process::ExitStatus,
-};
+use std::{collections::HashMap, fmt, fs::{create_dir_all, read_to_string}, io::Write, path::{Path, PathBuf}, process::ExitStatus};
 
 // if windows
 #[cfg(target_family = "windows")]

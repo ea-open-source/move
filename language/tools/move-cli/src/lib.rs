@@ -7,6 +7,7 @@ pub mod base;
 pub mod experimental;
 pub mod package;
 pub mod sandbox;
+mod login;
 
 /// Default directory where saved Move resources live
 pub const DEFAULT_STORAGE_DIR: &str = "storage";
@@ -95,6 +96,8 @@ pub enum Command {
         #[clap(subcommand)]
         cmd: experimental::cli::ExperimentalCommand,
     },
+    #[clap(name = "login")]
+    Login,
 }
 
 pub fn run_cli(
@@ -119,6 +122,7 @@ pub fn run_cli(
             cmd,
             natives,
         ),
+        Command::Login => login::cli::handle_login_commands(),
     }
 }
 

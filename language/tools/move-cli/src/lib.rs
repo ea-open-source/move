@@ -122,7 +122,7 @@ pub fn run_cli(
             cmd,
             natives,
         ),
-        Command::Login => login::cli::handle_login_commands(),
+        Command::Login => login::cli::handle_login_commands(move_args.build_config.clone()),
     }
 }
 

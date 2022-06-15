@@ -1,7 +1,14 @@
 // Copyright (c) The Diem Core Contributors
 // SPDX-License-Identifier: Apache-2.0
 
-use std::{collections::HashMap, fmt, fs::{create_dir_all, read_to_string}, fs, io::Write, path::{Path, PathBuf}, process::ExitStatus};
+use std::{
+    collections::HashMap,
+    fmt,
+    fs::{self, create_dir_all, read_to_string},
+    io::Write,
+    path::{Path, PathBuf},
+    process::ExitStatus,
+};
 
 // if windows
 #[cfg(target_family = "windows")]
@@ -39,6 +46,7 @@ use move_package::{
 };
 use move_unit_test::UnitTestingConfig;
 
+use crate::utils::credential;
 use crate::{package::prover::run_move_prover, NativeFunctionRecord};
 use move_package::source_package::manifest_parser::parse_move_manifest_string;
 use reqwest::blocking::Client;
@@ -218,7 +226,8 @@ pub struct UploadRequest {
     rev: String,
     description: String,
     total_files: usize,
-    total_size: u64
+    total_size: u64,
+    token: String,
 }
 
 impl CoverageSummaryOptions {
@@ -321,14 +330,15 @@ pub fn handle_package_commands(
             config
                 .resolution_graph_for_package(&rerooted_path)?
                 .print_info()?;
-        },
+        }
         PackageCommand::Upload => {
             let mut upload_request: UploadRequest = Default::default();
             let mut output = Command::new("git")
                 .current_dir(".")
                 .args(&["remote", "-v"])
-                .output().unwrap();
-            if !output.status.success() || output.stdout.len() == 0{
+                .output()
+                .unwrap();
+            if !output.status.success() || output.stdout.len() == 0 {
                 bail!("invalid git repository")
             }
 
@@ -357,7 +367,8 @@ pub fn handle_package_commands(
             output = Command::new("git")
                 .current_dir(".")
                 .args(&["rev-parse", "--short", "HEAD"])
-                .output().unwrap();
+                .output()
+                .unwrap();
             if !output.status.success() {
                 bail!("invalid HEAD commit id")
             }
@@ -365,11 +376,13 @@ pub fn handle_package_commands(
             upload_request.rev = String::from(revision_num.trim());
 
             let path = Path::new(".");
-            match std::fs::read_to_string(&path.to_path_buf().join(SourcePackageLayout::Manifest.path())) {
+            match std::fs::read_to_string(
+                &path
+                    .to_path_buf()
+                    .join(SourcePackageLayout::Manifest.path()),
+            ) {
                 Ok(contents) => {
-                    let source_package =
-                        parse_move_manifest_string(contents)?
-                        .to_string();
+                    let source_package = parse_move_manifest_string(contents)?.to_string();
                     let lines = source_package.split("\n");
                     for line in lines {
                         if line.contains("description") {
@@ -384,13 +397,14 @@ pub fn handle_package_commands(
                 }
                 Err(_) => {
                     bail!("unable to find Move.toml");
-                },
+                }
             }
 
             output = Command::new("git")
                 .current_dir(".")
                 .args(&["ls-files"])
-                .output().unwrap();
+                .output()
+                .unwrap();
             let tracked_files = String::from_utf8_lossy(output.stdout.as_slice());
             let tracked_files: Vec<&str> = tracked_files.split("\n").collect();
             let mut total_files = tracked_files.len();
@@ -398,20 +412,26 @@ pub fn handle_package_commands(
             for file_path in tracked_files {
                 if file_path.is_empty() {
                     total_files -= 1;
-                    continue
+                    continue;
                 }
                 total_size += fs::metadata(file_path)?.len();
             }
             upload_request.total_files = total_files;
             upload_request.total_size = total_size;
+            upload_request.token = credential::get_registry_api_token(config.test_mode);
+
             if config.test_mode {
-                std::fs::write("./request-body.txt", serde_json::to_string(&upload_request)
-                    .expect("invalid request body"))
-                    .expect("unable to write file");
+                fs::write(
+                    "./request-body.txt",
+                    serde_json::to_string(&upload_request).expect("invalid request body"),
+                )
+                .expect("unable to write file");
             } else {
                 let url: String;
                 if cfg!(debug_assertions) {
-                    url = String::from("https://movey-app-staging.herokuapp.com/api/v1/post_package/");
+                    url = String::from(
+                        "https://movey-app-staging.herokuapp.com/api/v1/post_package/",
+                    );
                 } else {
                     url = String::from("https://movey.net/api/v1/post_package/");
                 }

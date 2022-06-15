@@ -7,6 +7,7 @@ pub mod base;
 pub mod experimental;
 pub mod package;
 pub mod sandbox;
+pub mod utils;
 
 /// Default directory where saved Move resources live
 pub const DEFAULT_STORAGE_DIR: &str = "storage";

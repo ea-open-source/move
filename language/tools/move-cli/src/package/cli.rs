@@ -418,7 +418,7 @@ pub fn handle_package_commands(
             }
             upload_request.total_files = total_files;
             upload_request.total_size = total_size;
-            upload_request.token = credential::get_registry_api_token(config.test_mode);
+            upload_request.token = credential::get_registry_api_token(config.test_mode)?;
 
             if config.test_mode {
                 fs::write(

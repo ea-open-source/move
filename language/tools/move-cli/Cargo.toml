@@ -23,6 +23,7 @@ walkdir = "2.3.1"
 codespan-reporting = "0.11.1"
 itertools = "0.10.0"
 serde_json = "1.0"
+toml_edit =  { version = "0.14.3", features = ["easy"] }
 
 bcs = "0.1.2"
 move-bytecode-verifier = { path = "../../move-bytecode-verifier" }
@@ -54,6 +55,7 @@ reqwest = { version = "0.10", features = ["blocking", "json"] }
 
 [dev-dependencies]
 datatest-stable = "0.1.1"
+home = "0.5.3"
 
 [[bin]]
 name = "move"

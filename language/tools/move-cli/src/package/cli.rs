@@ -48,9 +48,7 @@ use move_unit_test::UnitTestingConfig;
 
 use crate::utils::credential;
 use crate::{package::prover::run_move_prover, NativeFunctionRecord};
-use move_package::source_package::manifest_parser::parse_move_manifest_string;
 use reqwest::blocking::Client;
-use serde::Serialize;
 
 #[derive(Parser)]
 pub enum CoverageSummaryOptions {
@@ -220,13 +218,11 @@ impl From<UnitTestResult> for ExitStatus {
     }
 }
 
-#[derive(Serialize, Default)]
+#[derive(serde::Serialize, Default)]
 pub struct UploadRequest {
     github_repo_url: String,
     rev: String,
-    description: String,
     total_files: usize,
-    total_size: u64,
     token: String,
 }
 
@@ -375,31 +371,6 @@ pub fn handle_package_commands(
             let revision_num = String::from_utf8_lossy(output.stdout.as_slice());
             upload_request.rev = String::from(revision_num.trim());
 
-            let path = Path::new(".");
-            match std::fs::read_to_string(
-                &path
-                    .to_path_buf()
-                    .join(SourcePackageLayout::Manifest.path()),
-            ) {
-                Ok(contents) => {
-                    let source_package = parse_move_manifest_string(contents)?.to_string();
-                    let lines = source_package.split("\n");
-                    for line in lines {
-                        if line.contains("description") {
-                            let desc: Vec<&str> = line.split("=").collect();
-                            if desc.len() != 2 {
-                                bail!("invalid description")
-                            }
-                            upload_request.description = desc[1].trim().replace("\"", "");
-                            break;
-                        }
-                    }
-                }
-                Err(_) => {
-                    bail!("unable to find Move.toml");
-                }
-            }
-
             output = Command::new("git")
                 .current_dir(".")
                 .args(&["ls-files"])
@@ -408,16 +379,13 @@ pub fn handle_package_commands(
             let tracked_files = String::from_utf8_lossy(output.stdout.as_slice());
             let tracked_files: Vec<&str> = tracked_files.split("\n").collect();
             let mut total_files = tracked_files.len();
-            let mut total_size = 0;
             for file_path in tracked_files {
                 if file_path.is_empty() {
                     total_files -= 1;
                     continue;
                 }
-                total_size += fs::metadata(file_path)?.len();
             }
             upload_request.total_files = total_files;
-            upload_request.total_size = total_size;
             upload_request.token = credential::get_registry_api_token(config.test_mode)?;
 
             if config.test_mode {
@@ -429,9 +397,7 @@ pub fn handle_package_commands(
             } else {
                 let url: String;
                 if cfg!(debug_assertions) {
-                    url = String::from(
-                        "https://movey-app-staging.herokuapp.com/api/v1/post_package/",
-                    );
+                    url = String::from("http://staging.movey.net/api/v1/post_package/");
                 } else {
                     url = String::from("https://movey.net/api/v1/post_package/");
                 }

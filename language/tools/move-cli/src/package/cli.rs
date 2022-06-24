@@ -399,7 +399,7 @@ pub fn handle_package_commands(
                 if cfg!(debug_assertions) {
                     url = String::from("http://staging.movey.net/api/v1/post_package/");
                 } else {
-                    url = String::from("https://movey.net/api/v1/post_package/");
+                    url = String::from("https://www.movey.net/api/v1/post_package/");
                 }
                 let client = Client::new();
                 let response = client.post(&url).json(&upload_request).send().unwrap();

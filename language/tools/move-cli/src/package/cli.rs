@@ -4,7 +4,7 @@
 use std::{
     collections::HashMap,
     fmt,
-    fs::{create_dir_all, read_to_string},
+    fs::{self, create_dir_all, read_to_string},
     io::Write,
     path::{Path, PathBuf},
     process::ExitStatus,
@@ -16,6 +16,7 @@ use std::os::windows::process::ExitStatusExt;
 // if unix
 #[cfg(any(target_family = "unix"))]
 use std::os::unix::prelude::ExitStatusExt;
+use std::process::Command;
 // if not windows nor unix
 #[cfg(not(any(target_family = "windows", target_family = "unix")))]
 compile_error!("Unsupported OS, currently we only support windows and unix family");
@@ -45,7 +46,9 @@ use move_package::{
 };
 use move_unit_test::UnitTestingConfig;
 
+use crate::utils::credential;
 use crate::{package::prover::run_move_prover, NativeFunctionRecord};
+use reqwest::blocking::Client;
 
 #[derive(Parser)]
 pub enum CoverageSummaryOptions {
@@ -88,6 +91,7 @@ pub enum PackageCommand {
     /// Print address information.
     #[clap(name = "info")]
     Info,
+    Upload,
     /// Generate error map for the package and its dependencies at `path` for use by the Move
     /// explanation tool.
     #[clap(name = "errmap")]
@@ -214,6 +218,14 @@ impl From<UnitTestResult> for ExitStatus {
     }
 }
 
+#[derive(serde::Serialize, Default)]
+pub struct UploadRequest {
+    github_repo_url: String,
+    rev: String,
+    total_files: usize,
+    token: String,
+}
+
 impl CoverageSummaryOptions {
     pub fn handle_command(&self, config: move_package::BuildConfig, path: &Path) -> Result<()> {
         let coverage_map = CoverageMap::from_binary_file(path.join(".coverage_map.mvcov"))?;
@@ -314,6 +326,89 @@ pub fn handle_package_commands(
             config
                 .resolution_graph_for_package(&rerooted_path)?
                 .print_info()?;
+        }
+        PackageCommand::Upload => {
+            let mut upload_request: UploadRequest = Default::default();
+            let mut output = Command::new("git")
+                .current_dir(".")
+                .args(&["remote", "-v"])
+                .output()
+                .unwrap();
+            if !output.status.success() || output.stdout.len() == 0 {
+                bail!("invalid git repository")
+            }
+
+            let lines = String::from_utf8_lossy(output.stdout.as_slice());
+            let lines = lines.split("\n");
+            for line in lines {
+                if line.contains("github.com") {
+                    let tokens: Vec<&str> = line.split(&['\t', ' '][..]).collect();
+                    if tokens.len() != 3 {
+                        bail!("invalid remote url")
+                    }
+                    // convert ssh url to https
+                    if tokens[1].starts_with("git@github.com") {
+                        let https_url = tokens[1]
+                            .replace(":", "/")
+                            .replace("git@", "https://")
+                            .replace(".git", "");
+                        upload_request.github_repo_url = https_url;
+                        break;
+                    }
+                    upload_request.github_repo_url = String::from(tokens[1]);
+                    break;
+                }
+            }
+
+            output = Command::new("git")
+                .current_dir(".")
+                .args(&["rev-parse", "--short", "HEAD"])
+                .output()
+                .unwrap();
+            if !output.status.success() {
+                bail!("invalid HEAD commit id")
+            }
+            let revision_num = String::from_utf8_lossy(output.stdout.as_slice());
+            upload_request.rev = String::from(revision_num.trim());
+
+            output = Command::new("git")
+                .current_dir(".")
+                .args(&["ls-files"])
+                .output()
+                .unwrap();
+            let tracked_files = String::from_utf8_lossy(output.stdout.as_slice());
+            let tracked_files: Vec<&str> = tracked_files.split("\n").collect();
+            let mut total_files = tracked_files.len();
+            for file_path in tracked_files {
+                if file_path.is_empty() {
+                    total_files -= 1;
+                    continue;
+                }
+            }
+            upload_request.total_files = total_files;
+            upload_request.token = credential::get_registry_api_token(config.test_mode)?;
+
+            if config.test_mode {
+                fs::write(
+                    "./request-body.txt",
+                    serde_json::to_string(&upload_request).expect("invalid request body"),
+                )
+                .expect("unable to write file");
+            } else {
+                let url: String;
+                if cfg!(debug_assertions) {
+                    url = String::from("http://staging.movey.net/api/v1/post_package/");
+                } else {
+                    url = String::from("https://www.movey.net/api/v1/post_package/");
+                }
+                let client = Client::new();
+                let response = client.post(&url).json(&upload_request).send().unwrap();
+                if response.status().as_u16() == 200 {
+                    println!("{}", "Your package has been successfully uploaded to Movey")
+                } else {
+                    println!("{}", "Upload failed")
+                }
+            }
         }
         PackageCommand::BytecodeView {
             interactive,

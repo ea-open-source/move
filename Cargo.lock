@@ -529,9 +529,9 @@ dependencies = [
 
 [[package]]
 name = "combine"
-version = "4.6.2"
+version = "4.6.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b2b2f5d0ee456f3928812dfc8c6d9a1d592b98678f6d56db9b0cd2b7bc6c8db5"
+checksum = "2a604e93b79d1808327a6fca85a6f2d69de66461e7620f5a4cbf5fb4d1d7c948"
 dependencies = [
  "bytes",
  "memchr",
@@ -1466,7 +1466,7 @@ dependencies = [
  "strip-ansi-escapes",
  "target-spec",
  "toml",
- "toml_edit",
+ "toml_edit 0.10.1",
  "twox-hash",
 ]
 
@@ -1535,6 +1535,15 @@ name = "hex"
 version = "0.4.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7f24254aa9a54b5c858eaee2f5bccdb46aaf0e486a595ed5fd8f86ba55232a70"
+
+[[package]]
+name = "home"
+version = "0.5.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2456aef2e6b6a9784192ae780c0f15bc57df0e918585282325e8c8ac27737654"
+dependencies = [
+ "winapi",
+]
 
 [[package]]
 name = "humansize"
@@ -2127,6 +2136,7 @@ dependencies = [
  "colored",
  "datatest-stable",
  "difference",
+ "home",
  "include_dir",
  "itertools 0.10.1",
  "move-binary-format",
@@ -2156,6 +2166,7 @@ dependencies = [
  "serde 1.0.130",
  "serde_yaml",
  "tempfile",
+ "toml_edit 0.14.4",
  "walkdir",
  "workspace-hack",
 ]
@@ -4779,6 +4790,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "toml_edit"
+version = "0.14.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5376256e44f2443f8896ac012507c19a012df0fe8758b55246ae51a2279db51f"
+dependencies = [
+ "combine",
+ "indexmap",
+ "itertools 0.10.1",
+ "serde 1.0.130",
+]
+
+[[package]]
 name = "tracing"
 version = "0.1.26"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4868,7 +4891,7 @@ version = "1.6.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4ee73e6e4924fe940354b8d4d98cad5231175d615cd855b758adc658c0aac6a0"
 dependencies = [
- "cfg-if 0.1.10",
+ "cfg-if 1.0.0",
  "static_assertions",
 ]
 
